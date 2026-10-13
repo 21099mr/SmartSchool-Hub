@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartSchool Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Shown only when firebase-config.js has not been filled in yet -->
+  <main id="setup" class="setup hidden">
+    <h1>Almost there</h1>
+    <p>SmartSchool Hub needs your Firebase settings before it can start.</p>
+    <p>Open <code>js/firebase-config.js</code>, paste your Firebase settings and save. The README explains each step.</p>
+  </main>
+
+  <!-- Login and sign up -->
+  <main id="auth-screen" class="auth hidden">
+    <section class="auth-art" aria-hidden="true">
+      <h1>Walk the hall.<br>Everything is behind a door.</h1>
+      <p>Homework, attendance, notices and lost items, all inside one 3D school you steer with your hands.</p>
+      <div class="lockers"></div>
+    </section>
+
+    <section class="auth-panel">
+      <div class="brand">SmartSchool Hub</div>
+      <div class="tabs" role="tablist">
+        <button id="tab-login" class="tab active" role="tab" aria-selected="true">Sign in</button>
+        <button id="tab-register" class="tab" role="tab" aria-selected="false">Create account</button>
+      </div>
+
+      <form id="form-login" class="stack" autocomplete="on">
+        <label>Email <input id="login-email" type="email" required autocomplete="email"></label>
+        <label>Password <input id="login-pw" type="password" required autocomplete="current-password"></label>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+
+      <form id="form-register" class="stack hidden" autocomplete="on">
+        <label>Full name <input id="reg-name" type="text" required maxlength="60" autocomplete="name"></label>
+        <label>Email <input id="reg-email" type="email" required autocomplete="email"></label>
+        <label>Password
+          <span class="pw-wrap">
+            <input id="reg-pw" type="password" required autocomplete="new-password">
+            <button type="button" id="reg-toggle" class="link">Show</button>
+          </span>
+        </label>
+        <div id="reg-meter" class="meter-box" aria-live="polite"></div>
+        <button class="btn primary" type="submit">Create account</button>
+      </form>
+
+      <p id="auth-error" class="error" role="alert"></p>
+    </section>
+  </main>
+
+  <!-- The app after login -->
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="brand">SmartSchool Hub</div>
+      <div class="who">
+        <span id="who-name"></span>
+        <span id="who-role" class="badge"></span>
+        <button id="logout" class="btn small">Sign out</button>
+      </div>
+    </header>
+    <nav id="nav" class="nav" aria-label="Main"></nav>
+
+    <div class="content">
+
+      <!-- ============ USER PORTAL ============ -->
+      <section id="view-tour" class="view hidden">
+        <h1>School tour</h1>
+        <div class="tour-wrap">
+          <div class="tour-main">
+            <div id="tour-stage" class="tour-stage"></div>
+            <div class="tour-hud">
+              <span id="tour-room" class="chip">Walk toward a door</span>
+              <button id="tour-enter" class="btn primary hidden">Enter room</button>
+            </div>
+            <div id="dpad" class="dpad">
+              <button data-move="up" aria-label="Walk forward">&#9650;</button>
+              <button data-move="left" aria-label="Turn left">&#9664;</button>
+              <button data-move="down" aria-label="Walk backward">&#9660;</button>
+              <button data-move="right" aria-label="Turn right">&#9654;</button>
+            </div>
+          </div>
+          <aside class="tour-side">
+            <button id="gesture-toggle" class="btn">Turn on hand control</button>
+            <p id="gesture-status" class="muted">Hand control is off. Use the arrow keys, WASD or the on-screen arrows.</p>
+            <div class="cam">
+              <video id="gesture-video" playsinline muted></video>
+              <canvas id="gesture-canvas"></canvas>
+            </div>
+            <ul class="guide">
+              <li><b>Point</b> with one finger to walk forward. Move your hand left or right to steer.</li>
+              <li><b>Open palm</b> to stop.</li>
+              <li><b>Fist</b> to walk backward.</li>
+              <li><b>Pinch</b> thumb and index finger, other fingers up, to enter the door you are near.</li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-homework" class="view hidden">
+        <h1>Homework planner</h1>
+        <form id="hw-form" class="row-form">
+          <input id="hw-subject" placeholder="Subject" aria-label="Subject" required maxlength="40">
+          <input id="hw-task" placeholder="What do you need to do?" aria-label="Task" required maxlength="120">
+          <input id="hw-due" type="date" aria-label="Due date" required>
+          <button class="btn primary" type="submit">Add homework</button>
+        </form>
+        <ul id="hw-list" class="list"></ul>
+      </section>
+
+      <section id="view-attendance" class="view hidden">
+        <h1>Attendance</h1>
+        <div class="att-box">
+          <p id="att-status"></p>
+          <button id="att-btn" class="btn primary">Mark me present today</button>
+        </div>
+        <h2>Your history</h2>
+        <ul id="att-list" class="list"></ul>
+      </section>
+
+      <section id="view-notices" class="view hidden">
+        <h1>Notice board</h1>
+        <ul id="notice-list" class="notices"></ul>
+      </section>
+
+      <section id="view-lostfound" class="view hidden">
+        <h1>Lost &amp; found</h1>
+        <div class="two-col">
+          <div>
+            <div class="scanner">
+              <video id="lf-video" playsinline muted></video>
+              <canvas id="lf-canvas"></canvas>
+              <div id="lf-off" class="scanner-off">Camera is off</div>
+            </div>
+            <div class="btn-row">
+              <button id="lf-start" class="btn">Start scanner</button>
+              <button id="lf-capture" class="btn" disabled>Capture whole frame</button>
+            </div>
+            <p id="lf-status" class="muted">Start the scanner, then hold an item up to the camera. The AI knows about 80 everyday objects such as bottles, bags, books and phones.</p>
+            <div id="lf-chips" class="chips"></div>
+            <form id="lf-form" class="stack">
+              <div class="preview-row">
+                <img id="lf-preview" class="hidden" alt="Captured item">
+                <div class="grow stack">
+                  <input id="lf-item" placeholder="Item name" aria-label="Item name" required maxlength="60">
+                  <input id="lf-note" placeholder="Where did you find it?" aria-label="Where found" maxlength="120">
+                </div>
+              </div>
+              <button class="btn primary" type="submit">Post to the board</button>
+            </form>
+          </div>
+          <div>
+            <h2>Board</h2>
+            <div id="lost-list" class="lost-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-passlab" class="view hidden">
+        <h1>Password lab</h1>
+        <p class="muted">Type any password to test it. Nothing you type here is saved or sent anywhere.</p>
+        <input id="lab-pw" class="big-input" type="text" placeholder="Try a password" autocomplete="off" spellcheck="false">
+        <div id="lab-meter" class="meter-box" aria-live="polite"></div>
+      </section>
+
+      <!-- ============ ADMIN PORTAL ============ -->
+      <section id="view-a-dashboard" class="view hidden">
+        <h1>Admin dashboard</h1>
+        <div id="a-stats" class="stats"></div>
+        <div class="two-col">
+          <div>
+            <h2>Latest activity</h2>
+            <ul id="a-recent" class="list"></ul>
+          </div>
+          <div>
+            <h2>Most active students</h2>
+            <ul id="a-top" class="list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-a-activity" class="view hidden">
+        <h1>Activity history</h1>
+        <div class="filters">
+          <input id="f-search" type="search" placeholder="Search names and details" aria-label="Search">
+          <select id="f-user" aria-label="Filter by user"></select>
+          <select id="f-action" aria-label="Filter by action"></select>
+          <button id="f-csv" class="btn">Download CSV</button>
+        </div>
+        <p id="f-count" class="muted"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+            <tbody id="f-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-a-users" class="view hidden">
+        <h1>Users</h1>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Last sign in</th><th>Events</th><th></th></tr></thead>
+            <tbody id="u-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-a-attendance" class="view hidden">
+        <h1>Attendance</h1>
+        <label class="inline">Date <input id="aa-date" type="date"></label>
+        <div class="two-col">
+          <div><h2 id="aa-present-title">Present</h2><ul id="aa-present" class="list"></ul></div>
+          <div><h2 id="aa-absent-title">Not marked</h2><ul id="aa-absent" class="list"></ul></div>
+        </div>
+      </section>
+
+      <section id="view-a-notices" class="view hidden">
+        <h1>Announcements</h1>
+        <form id="an-form" class="stack narrow">
+          <input id="an-title" placeholder="Title" aria-label="Title" required maxlength="80">
+          <textarea id="an-body" placeholder="Message for all students" aria-label="Message" required maxlength="500" rows="3"></textarea>
+          <button class="btn primary" type="submit">Post announcement</button>
+        </form>
+        <ul id="a-notice-list" class="notices"></ul>
+      </section>
+
+      <section id="view-a-lostfound" class="view hidden">
+        <h1>Lost &amp; found</h1>
+        <div id="a-lost-list" class="lost-grid"></div>
+      </section>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
